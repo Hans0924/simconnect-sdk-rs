@@ -1,5 +1,5 @@
 use crate::{
-    bindings, success, ClientEventRequest, SimConnect, SimConnectError, SystemEventRequest,
+    bindings, success, ClientEventRequest, ObjectId, SimConnect, SimConnectError, SystemEventRequest
 };
 
 // In order to simplify the usage we're using a single notification group for all client events.
@@ -85,6 +85,32 @@ impl SimConnect {
                 self.handle.as_ptr(),
                 NOTIFICATION_GROUP_ID,
                 bindings::SIMCONNECT_GROUP_PRIORITY_HIGHEST,
+            )
+        })?;
+
+        Ok(())
+    }
+
+    #[tracing::instrument(
+        name = "SimConnect::transmit_client_event",
+        level = "debug",
+        skip(self)
+    )]
+    pub fn transmit_client_event(
+        &mut self,
+        object_id: ObjectId,
+        event: ClientEventRequest,
+        data: u32,
+        group_id: u32,
+    ) -> Result<(), SimConnectError> {
+        success!(unsafe {
+            bindings::SimConnect_TransmitClientEvent(
+                self.handle.as_ptr(),
+                object_id.into(),
+                event as u32,
+                data,
+                group_id,
+                bindings::SIMCONNECT_EVENT_FLAG_DEFAULT,
             )
         })?;
 

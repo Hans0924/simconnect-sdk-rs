@@ -44,6 +44,11 @@ pub enum ClientEventRequest {
     AxisRightBrakeSet,
     /// Toggles parking brake on/off.
     ParkingBrakes,
+    // ---------------
+    // Failure
+    // ---------------
+    /// Toggles engine 1 failure on/off.
+    ToggleEngine1Failure
 }
 
 impl ClientEventRequest {
@@ -63,6 +68,7 @@ impl ClientEventRequest {
             Self::AxisLeftBrakeSet => "AXIS_LEFT_BRAKE_SET\0".as_ptr() as *const c_char,
             Self::AxisRightBrakeSet => "AXIS_RIGHT_BRAKE_SET\0".as_ptr() as *const c_char,
             Self::ParkingBrakes => "PARKING_BRAKES\0".as_ptr() as *const c_char,
+            Self::ToggleEngine1Failure => "TOGGLE_ENGINE1_FAILURE\0".as_ptr() as *const c_char,
         }
     }
 }
@@ -126,6 +132,13 @@ pub enum ClientEvent {
     },
     /// Toggles parking brake on/off.
     ParkingBrakes,
+    // ---------------
+    // Failure
+    // ---------------
+    ToggleEngine1Failure {
+        /// 1 - Engine 1 failure on, 0 - Engine 1 failure off.
+        value: i32,
+    },
 }
 
 impl TryFrom<&bindings::SIMCONNECT_RECV_EVENT> for ClientEvent {
@@ -164,6 +177,10 @@ impl TryFrom<&bindings::SIMCONNECT_RECV_EVENT> for ClientEvent {
                 value: event.dwData as i32,
             }),
             ClientEventRequest::ParkingBrakes => Ok(Self::ParkingBrakes),
+            // Failure
+            ClientEventRequest::ToggleEngine1Failure => Ok(Self::ToggleEngine1Failure {
+                value: event.dwData as i32,
+            }),
         }
     }
 }
@@ -189,6 +206,30 @@ impl From<ClientEvent> for (ClientEventRequest, i32) {
                 (ClientEventRequest::AxisRightBrakeSet, value)
             }
             ClientEvent::ParkingBrakes => (ClientEventRequest::ParkingBrakes, 0),
+            // Failure
+            ClientEvent::ToggleEngine1Failure { value } => {
+                (ClientEventRequest::ToggleEngine1Failure, value)
+            }
+        }
+    }
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[non_exhaustive]
+pub enum EventFlag {
+    Default,
+    FastRepeatTimer,
+    SlowRepeatTimer,
+    GroupIdIsPriority,
+}
+
+impl From<EventFlag> for u32 {
+    fn from(flag: EventFlag) -> Self {
+        match flag {
+            EventFlag::Default => bindings::SIMCONNECT_EVENT_FLAG_DEFAULT,
+            EventFlag::FastRepeatTimer => bindings::SIMCONNECT_EVENT_FLAG_FAST_REPEAT_TIMER,
+            EventFlag::SlowRepeatTimer => bindings::SIMCONNECT_EVENT_FLAG_SLOW_REPEAT_TIMER,
+            EventFlag::GroupIdIsPriority => bindings::SIMCONNECT_EVENT_FLAG_GROUPID_IS_PRIORITY,
         }
     }
 }
